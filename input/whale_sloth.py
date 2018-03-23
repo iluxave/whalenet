@@ -13,6 +13,10 @@ from object_detection.utils import label_map_util
 import numpy as np
 import cv2
 
+from os.path import dirname
+
+BASEDIR=dirname(__file__)
+
 PATH_TO_CKPT="/home/ilya/ai/tf-models/research/object_detection/mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28/frozen_inference_graph.pb"
 PATH_TO_LABELS="/home/ilya/ai/tf-models/research/object_detection/data/mscoco_label_map.pbtxt"
 NUM_CLASSES = 90
@@ -22,6 +26,7 @@ class EditablePolygonItem(PolygonItem):
         sloth.items.PolygonItem.__init__(self, *args, **kwargs)
 
         self.point_in_motion = None
+        self.point_translate_start = None
 
     def find_nearest_point(self, x, y, max_dist = 10.0):
         dists = [math.sqrt((x - pt.x()) ** 2 + (y - pt.y()) ** 2) for pt in self._polygon]
@@ -31,7 +36,6 @@ class EditablePolygonItem(PolygonItem):
         return min_ind
 
     def mousePressEvent(self, event):
-        PolygonItem.mousePressEvent(self, event)
         min_ind = self.find_nearest_point(event.pos().x(), event.pos().y())
         if event.modifiers() == Qt.ControlModifier:
             if min_ind is not None:
@@ -40,21 +44,35 @@ class EditablePolygonItem(PolygonItem):
             #min_ind = self.find_nearest_point(event.pos().x(), event.pos().y(), None)
             self.create_new_point(event.pos())
         else:
-            if min_ind is not None:
-                self.point_in_motion = min_ind
+            if event.button() == Qt.LeftButton:
+                if min_ind is not None:
+                    self.point_in_motion = min_ind
+                else:
+                    self.point_translate_start = event.pos()
+            else:
+                PolygonItem.mousePressEvent(self, event)
+        event.accept()
+
 
     def mouseMoveEvent(self, event):
-        PolygonItem.mouseMoveEvent(self, event)
+        poly = self._polygon
         if self.point_in_motion is not None:
             self.prepareGeometryChange()
-            poly = self._polygon
             poly[self.point_in_motion] = event.pos()
+        elif self.point_translate_start is not None:
+            self.prepareGeometryChange()
+            poly.translate(event.pos().x()-self.point_translate_start.x(),
+                           event.pos().y()-self.point_translate_start.y())
+            self.point_translate_start = event.pos()
+        else:
+            PolygonItem.mouseMoveEvent(self, event)
+        event.accept()
 
     def mouseReleaseEvent(self, event):
-        PolygonItem.mouseReleaseEvent(self, event)
-        if self.point_in_motion is not None:
-            self.point_in_motion = None
+        self.point_in_motion = None
+        self.point_translate_start = None
         self.updateModel()
+        event.accept()
 
     def create_new_point(self, pt):
         ptind = self.find_nearest_point(pt.x(), pt.y(), None)
@@ -93,7 +111,11 @@ class EditablePolygonItem(PolygonItem):
         for pt in self._polygon:
             painter.drawEllipse(QRectF(pt.x()-4, pt.y()-4, 8, 8))
 
-
+    def boundingRect(self):
+        rect = PolygonItem.boundingRect(self)
+        xp1, yp1, xp2, yp2 = rect.getCoords()
+        rect.setCoords(xp1-4, yp1-4, xp2+4, yp2+4)
+        return rect
 
 # This class runs the image through a google object detection API (using mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28)
 # And generates polygons based on detected masks
