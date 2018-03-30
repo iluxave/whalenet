@@ -103,8 +103,8 @@ class EditablePolygonItem(PolygonItem):
 
         def __next__(self):
             self._idx = self._idx+1
-            if self._poly.size() <= self._idx: raise StopIteration
-            if self._poly.size() == self._idx-1:
+            if self._poly.size() < self._idx: raise StopIteration
+            if self._poly.size() == self._idx:
                 pta = self._poly[self._idx]
                 ptb = self._poly[0]
             else:
@@ -133,7 +133,6 @@ class EditablePolygonItem(PolygonItem):
             if min_ind is not None:
                 self._polygon.remove(min_ind)
         elif event.modifiers() == Qt.ShiftModifier:
-            min_ind = self.find_insertion_idx(event.pos())
             self.create_new_point(event.pos())
         else:
             if event.button() == Qt.LeftButton:
@@ -167,7 +166,7 @@ class EditablePolygonItem(PolygonItem):
         event.accept()
 
     def create_new_point(self, pt):
-        ptind = self.find_nearest_point(pt.x(), pt.y(), None)
+        ptind = self.find_insertion_idx(pt)
         if ptind is None:
             return
         if ptind == 0:
@@ -201,12 +200,12 @@ class EditablePolygonItem(PolygonItem):
     def paint(self, painter, option, widget=None):
         sloth.items.PolygonItem.paint(self, painter, option, widget)
         for pt in self._polygon:
-            painter.drawEllipse(QRectF(pt.x()-4, pt.y()-4, 8, 8))
+            painter.drawEllipse(QRectF(pt.x()-2, pt.y()-2, 4, 4))
 
     def boundingRect(self):
         rect = PolygonItem.boundingRect(self)
         xp1, yp1, xp2, yp2 = rect.getCoords()
-        rect.setCoords(xp1-4, yp1-4, xp2+4, yp2+4)
+        rect.setCoords(xp1-2, yp1-2, xp2+2, yp2+2)
         return rect
 
 # This class runs the image through a google object detection API (using mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28)
