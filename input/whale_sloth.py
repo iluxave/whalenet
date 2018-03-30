@@ -21,6 +21,60 @@ PATH_TO_CKPT="/home/ilya/ai/tf-models/research/object_detection/mask_rcnn_incept
 PATH_TO_LABELS="/home/ilya/ai/tf-models/research/object_detection/data/mscoco_label_map.pbtxt"
 NUM_CLASSES = 90
 
+def point_to_seg_dist(point, line):
+    """Calculate the distance between a point and a line segment.
+
+    To calculate the closest distance to a line segment, we first need to check
+    if the point projects onto the line segment.  If it does, then we calculate
+    the orthogonal distance from the point to the line.
+    If the point does not project to the line segment, we calculate the 
+    distance to both endpoints and take the shortest distance.
+
+    :param point: Numpy array of form [x,y], describing the point.
+    :type point: numpy.core.multiarray.ndarray
+    :param line: list of endpoint arrays of form [P1, P2]
+    :type line: list of numpy.core.multiarray.ndarray
+    :return: The minimum distance to a point.
+    :rtype: float
+
+    Source: https://stackoverflow.com/a/45483585/7724174
+    """
+    # unit vector
+    unit_line = line[1] - line[0]
+    norm_unit_line = unit_line / np.linalg.norm(unit_line)
+
+    # compute the perpendicular distance to the theoretical infinite line
+    segment_dist = (
+        np.linalg.norm(np.cross(line[1] - line[0], line[0] - point)) /
+        np.linalg.norm(unit_line)
+    )
+
+    diff = (
+        (norm_unit_line[0] * (point[0] - line[0][0])) + 
+        (norm_unit_line[1] * (point[1] - line[0][1]))
+    )
+
+    x_seg = (norm_unit_line[0] * diff) + line[0][0]
+    y_seg = (norm_unit_line[1] * diff) + line[0][1]
+
+    endpoint_dist = min(
+        np.linalg.norm(line[0] - point),
+        np.linalg.norm(line[1] - point)
+    )
+
+    # decide if the intersection point falls on the line segment
+    lp1_x = line[0][0]  # line point 1 x
+    lp1_y = line[0][1]  # line point 1 y
+    lp2_x = line[1][0]  # line point 2 x
+    lp2_y = line[1][1]  # line point 2 y
+    is_betw_x = lp1_x <= x_seg <= lp2_x or lp2_x <= x_seg <= lp1_x
+    is_betw_y = lp1_y <= y_seg <= lp2_y or lp2_y <= y_seg <= lp1_y
+    if is_betw_x and is_betw_y:
+        return segment_dist
+    else:
+        # if not, then return the minimum distance to the segment endpoints
+        return endpoint_dist
+
 class EditablePolygonItem(PolygonItem):
     def __init__(self, *args, **kwargs):
         sloth.items.PolygonItem.__init__(self, *args, **kwargs)
@@ -35,13 +89,51 @@ class EditablePolygonItem(PolygonItem):
             return None
         return min_ind
 
+    # Iterate over segments of a QPolygonF, returns
+    # end points of a segment, and index of the second end point
+    # The index is where we'll insert the new point, should we need to
+    # add one
+    class SegmentIterator:
+        def __init__(self, poly):
+            self._poly = poly
+            self._idx = 0
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            self._idx = self._idx+1
+            if self._poly.size() <= self._idx: raise StopIteration
+            if self._poly.size() == self._idx-1:
+                pta = self._poly[self._idx]
+                ptb = self._poly[0]
+            else:
+                pta = self._poly[self._idx-1]
+                ptb = self._poly[self._idx]
+            a = np.array([[pta.x(), pta.y()], [ptb.x(), ptb.y()]])
+            return (a, self._idx)
+
+    def find_insertion_idx(self, pt):
+        min_dist=None
+        min_idx = 0
+        pt = np.array([pt.x(), pt.y()])
+        for (seg, idx) in EditablePolygonItem.SegmentIterator(self._polygon):
+            dist = point_to_seg_dist(pt, seg)
+            if min_dist is None:
+                min_dist = dist
+                min_idx = idx
+            elif dist < min_dist:
+                min_dist = dist
+                min_idx = idx
+        return min_idx
+
     def mousePressEvent(self, event):
         min_ind = self.find_nearest_point(event.pos().x(), event.pos().y())
         if event.modifiers() == Qt.ControlModifier:
             if min_ind is not None:
                 self._polygon.remove(min_ind)
         elif event.modifiers() == Qt.ShiftModifier:
-            #min_ind = self.find_nearest_point(event.pos().x(), event.pos().y(), None)
+            min_ind = self.find_insertion_idx(event.pos())
             self.create_new_point(event.pos())
         else:
             if event.button() == Qt.LeftButton:
