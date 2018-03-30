@@ -1,0 +1,3 @@
+[submodule "sloth"]
+	path = sloth
+	url = ../sloth.git

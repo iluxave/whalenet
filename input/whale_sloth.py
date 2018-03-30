@@ -2,7 +2,6 @@ import math
 from PyQt4.Qt import *
 import sloth
 from sloth.items import PolygonItem
-from sloth.plugins.facedetector import FaceDetectorPlugin
 from sloth.annotations.model import ImageModelItem
 
 import tensorflow as tf
