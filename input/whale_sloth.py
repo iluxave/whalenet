@@ -6,16 +6,16 @@ import numpy as np
 
 whaledetect=0
 import traceback
-#try:
-#    from object_detection.utils import ops as utils_ops
-#    from object_detection.utils import label_map_util
-#    from whalenet import WhaleDetectorPlugin
-#    whaledetect=1
-#    print("Whale detection enabled")
-#except Exception as e:
-#    print("Whale detection disabled")
-#    traceback.print_exc()
-#    pass
+try:
+    from object_detection.utils import ops as utils_ops
+    from object_detection.utils import label_map_util
+    from whalenet import WhaleDetectorPlugin
+    whaledetect=1
+    print("Whale detection enabled")
+except Exception as e:
+    print("Whale detection disabled")
+    traceback.print_exc()
+    pass
 
 from os.path import dirname
 
