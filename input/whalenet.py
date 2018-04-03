@@ -23,8 +23,10 @@ class WhaleDetectorPlugin(QObject):
         QObject.__init__(self)
         self._labeltool = labeltool
         self._wnd = labeltool.mainWindow()
-        self._sc  = QAction("Detect whales", self._wnd)
-        self._sc.triggered.connect(self.doit)
+        self._sc_all  = QAction("Detect whales in all images", self._wnd)
+        self._sc_all.triggered.connect(self.doall)
+        self._sc_one  = QAction("Detect whales in current image", self._wnd)
+        self._sc_one.triggered.connect(self.doone)
         # Prepare the TF model and stuff
         self._graph = tf.Graph()
         with self._graph.as_default():
@@ -94,25 +96,37 @@ class WhaleDetectorPlugin(QObject):
                     output_dict['detection_masks'] = output_dict['detection_masks'][0]
         return output_dict
 
-    def doit(self):
-        self._sc.setEnabled(False)
+    def doimg(self, item):
+        img = self._labeltool.getImage(item)
+        whales = self.run_inference_for_single_image(img)
+        for whale in whales['detection_masks']:
+            whale_poly=self.mask2poly(whale)
+            ann = {
+                'class':    'tail',
+                'xn':        ';'.join([str(p.x()) for p in whale_poly]),
+                'yn':        ';'.join([str(p.y()) for p in whale_poly]),
+                'autodetected': 'true',
+                'corrected': 'false',
+            }
+
+            item.addAnnotation(ann)
+
+    def doone(self):
+        self._sc_all.setEnabled(False)
+        self._sc_one.setEnabled(False)
+        self.doimg(self._labeltool.currentImage())
+        self._sc_all.setEnabled(True)
+        self._sc_one.setEnabled(True)
+
+    def doall(self):
+        self._sc_all.setEnabled(False)
+        self._sc_one.setEnabled(False)
         model = self._labeltool.model()
         n_images = model.rowCount()
         for i, item in enumerate(model.iterator(ImageModelItem)):
-            img = self._labeltool.getImage(item)
-            whales = self.run_inference_for_single_image(img)
-            for whale in whales['detection_masks']:
-                whale_poly=self.mask2poly(whale)
-                ann = {
-                        'class':    'tail',
-                        'xn':        ';'.join([str(p.x()) for p in whale_poly]),
-                        'yn':        ';'.join([str(p.y()) for p in whale_poly]),
-                        'autodetected': 'true',
-                        'corrected': 'false',
-                      }
-
-                item.addAnnotation(ann)
-        self._sc.setEnabled(True)
+            self.doimg(item)
+        self._sc_all.setEnabled(True)
+        self._sc_one.setEnabled(True)
 
     def action(self):
-        return self._sc
+        return (self._sc_one, self._sc_all)
