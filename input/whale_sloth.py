@@ -76,11 +76,16 @@ def point_to_seg_dist(point, line):
         return endpoint_dist
 
 class EditablePolygonItem(PolygonItem):
-    def __init__(self, *args, **kwargs):
-        sloth.items.PolygonItem.__init__(self, *args, **kwargs)
+    def __init__(self, model_item=None, prefix="", parent=None):
+        sloth.items.PolygonItem.__init__(self, model_item, prefix, parent)
 
         self.point_in_motion = None
         self.point_translate_start = None
+        if 'corrected' in model_item:
+            self._corrected = model_item['corrected']
+        else:
+            self._corrected = False
+
 
     def find_nearest_point(self, x, y, max_dist = 10.0):
         dists = [math.sqrt((x - pt.x()) ** 2 + (y - pt.y()) ** 2) for pt in self._polygon]
@@ -165,6 +170,17 @@ class EditablePolygonItem(PolygonItem):
         self.updateModel()
         event.accept()
 
+    def markReviewed(self):
+        """
+        This handles marking given polygon as human-reviewed
+        """
+        self._corrected = True;
+        self.updateModel()
+
+    hotkeys = {
+        'R': markReviewed,
+    }
+
     def create_new_point(self, pt):
         ptind = self.find_insertion_idx(pt)
         self._polygon.insert(ptind, pt)
@@ -178,12 +194,13 @@ class EditablePolygonItem(PolygonItem):
         self._model_item.update({
             self.prefix() + 'xn': xn_string,
             self.prefix() + 'yn': yn_string,
+            self.prefix() + 'corrected': self._corrected,
         })
 
     def paint(self, painter, option, widget=None):
         sloth.items.PolygonItem.paint(self, painter, option, widget)
         for pt in self._polygon:
-            painter.drawEllipse(QRectF(pt.x()-2, pt.y()-2, 4, 4))
+            painter.drawEllipse(QRectF(pt.x()-1, pt.y()-1, 2, 2))
 
     def boundingRect(self):
         rect = PolygonItem.boundingRect(self)
