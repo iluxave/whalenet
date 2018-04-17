@@ -83,6 +83,8 @@ class EditablePolygonItem(PolygonItem):
         self.point_translate_start = None
         if 'corrected' in model_item:
             self._corrected = model_item['corrected']
+            if self._corrected == 'false':
+                self._corrected = False
         else:
             self._corrected = False
 
@@ -208,7 +210,101 @@ class EditablePolygonItem(PolygonItem):
         rect.setCoords(xp1-2, yp1-2, xp2+2, yp2+2)
         return rect
 
+from sloth.annotations.container import AnnotationContainer
+from PIL import Image, ImageDraw
+import tensorflow as tf
+from object_detection.utils import dataset_util
+import io
 
+def create_tf_example(annotation):
+    if annotation['class'] != 'image':
+        return None
+    numvalid=0
+    annotations = annotation['annotations']
+    for ann in annotations:
+        if 'corrected' in ann and ann['corrected']:
+            numvalid=numvalid+1
+    if numvalid==0:
+        return None
+
+    filename = annotation['filename'].encode('utf8')
+
+    with tf.gfile.GFile(filename, 'rb') as fid:
+        encoded_jpg = fid.read()
+    encoded_jpg_io = io.BytesIO(encoded_jpg)
+    image = Image.open(encoded_jpg_io)
+    image_format = b'jpg'
+    width, height = image.size
+
+    features = {
+        'image/height': dataset_util.int64_feature(height),
+        'image/width': dataset_util.int64_feature(width),
+        'image/filename': dataset_util.bytes_feature(filename),
+        'image/source_id': dataset_util.bytes_feature(filename),
+        'image/encoded': dataset_util.bytes_feature(encoded_jpg),
+        'image/format': dataset_util.bytes_feature(image_format)
+    }
+
+    xmins=[]
+    xmaxs=[]
+    ymins=[]
+    ymaxs=[]
+    masks=[]
+    classes=[]
+    classes_text=[]
+
+    # For now presume we only have polygon-type annotations
+    for ann in annotations:
+        if 'corrected' not in ann or not ann['corrected']:
+            continue
+        # load the polygon, and find its bounding box
+        polygon = []
+        xn = [float(x) for x in ann["xn"].split(";")]
+        yn = [float(y) for y in ann["yn"].split(";")]
+        xmin=width
+        ymin=height
+        xmax=0
+        ymax=0
+        for x, y in zip(xn, yn):
+            polygon.append((x, y))
+            if xmin > x: xmin=x
+            if ymin > y: ymin=y
+            if x > xmax: xmax=x
+            if y > ymax: ymax=y
+        xmins.append(xmin/width)
+        xmaxs.append(xmax/width)
+        ymins.append(ymin/height)
+        ymaxs.append(ymax/height)
+        # Now turn the polygon into an image mask
+        mask=Image.new('1', (width, height))
+        draw=ImageDraw.Draw(mask)
+        draw.polygon(polygon, fill='white')
+        pngio=io.BytesIO()
+        mask.save(pngio, 'PNG')
+        masks.append(pngio.getvalue())
+        classes.append(1) # For now - just the tail
+        classes_text.append('whale_tail'.encode('utf8'))
+
+    features.update({
+        'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
+        'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
+        'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
+        'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
+        'image/object/mask': dataset_util.bytes_list_feature(masks),
+        'image/object/class/text': dataset_util.bytes_list_feature(classes_text),
+        'image/object/class/label': dataset_util.int64_list_feature(classes)
+    })
+    tf_example=tf.train.Example(features=tf.train.Features(feature=features))
+    return tf_example
+
+class TFRecordContainer(AnnotationContainer):
+    def serializeToFile(self, filename, annotations):
+        writer = tf.python_io.TFRecordWriter(filename)
+        for a in annotations:
+            example = create_tf_example(a)
+            if example:
+                writer.write(example.SerializeToString())
+        writer.close()
 
 
 LABELS = (
@@ -245,3 +341,9 @@ if whaledetect:
     PLUGINS = [
         WhaleDetectorPlugin
     ]
+
+from sloth.conf.default_config import CONTAINERS
+CONTAINERS+=(
+    ('*.tfrecord', TFRecordContainer),
+    ('*.tf', TFRecordContainer)
+)
