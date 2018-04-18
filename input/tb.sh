@@ -1,2 +1,3 @@
 #!/bin/bash
-exec tensorboard --logdir=./google_object_detection/
+exec tensorboard --logdir=./google_object_detection/mask
+
