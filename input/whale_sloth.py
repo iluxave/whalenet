@@ -85,6 +85,7 @@ class EditablePolygonItem(PolygonItem):
             self._corrected = model_item['corrected']
             if self._corrected == 'false':
                 self._corrected = False
+                self.updateModel()
         else:
             self._corrected = False
 
@@ -193,6 +194,7 @@ class EditablePolygonItem(PolygonItem):
         yns = [str(pt.y()) for pt in self._polygon]
         xn_string = ";".join(xns)
         yn_string = ";".join(yns)
+        print("Corrected: ", self._corrected)
         self._model_item.update({
             self.prefix() + 'xn': xn_string,
             self.prefix() + 'yn': yn_string,
@@ -300,11 +302,14 @@ def create_tf_example(annotation):
 class TFRecordContainer(AnnotationContainer):
     def serializeToFile(self, filename, annotations):
         writer = tf.python_io.TFRecordWriter(filename)
+        i=0
         for a in annotations:
             example = create_tf_example(a)
             if example:
                 writer.write(example.SerializeToString())
+                i=i+1
         writer.close()
+        print("Wrote %d examples"%i)
 
 
 LABELS = (
