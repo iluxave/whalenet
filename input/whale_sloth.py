@@ -75,6 +75,9 @@ def point_to_seg_dist(point, line):
         # if not, then return the minimum distance to the segment endpoints
         return endpoint_dist
 
+def ptdist(pt1, pt2):
+    return np.linalg.norm(np.array([pt1.x(), pt1.y()]) - np.array([pt2.x(), pt2.y()]))
+
 class EditablePolygonItem(PolygonItem):
     def __init__(self, model_item=None, prefix="", parent=None):
         sloth.items.PolygonItem.__init__(self, model_item, prefix, parent)
@@ -180,8 +183,30 @@ class EditablePolygonItem(PolygonItem):
         self._corrected = True;
         self.updateModel()
 
+    MIN_POINT_DIST=5
+
+    def prunePoints(self):
+        """
+        Remove points that are too close to each other
+        This cleans up generated polygons, and makes adjusting
+        them easier
+        """
+        if self._polygon.size() < 3: return
+        i=1
+        print("Prunning")
+        while i<self._polygon.size():
+            pt1 = self._polygon[i-1]
+            pt2 = self._polygon[i]
+            if ptdist(pt1, pt2) < self.MIN_POINT_DIST:
+                print("Removing point", i)
+                self._polygon.remove(i)
+            else:
+                i=i+1
+        self.updateModel()
+
     hotkeys = {
         'R': markReviewed,
+        'P': prunePoints,
     }
 
     def create_new_point(self, pt):
