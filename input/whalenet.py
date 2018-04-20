@@ -9,12 +9,15 @@ from sloth.annotations.model import ImageModelItem
 
 import object_detection
 import os
-objdet_path=os.path.dirname(object_detection.__file__)
+#objdet_path=os.path.dirname(object_detection.__file__)
+objdet_path=os.path.dirname(__file__)
 
-
-PATH_TO_CKPT=os.path.join(objdet_path, "mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28","frozen_inference_graph.pb")
-PATH_TO_LABELS=os.path.join(objdet_path, "data", "mscoco_label_map.pbtxt")
-NUM_CLASSES = 90
+#PATH_TO_CKPT=os.path.join(objdet_path, "mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28","frozen_inference_graph.pb")
+#PATH_TO_LABELS=os.path.join(objdet_path, "data", "mscoco_label_map.pbtxt")
+#NUM_CLASSES = 90
+PATH_TO_CKPT=os.path.join(objdet_path, "mask_inference_graph", "frozen_inference_graph.pb")
+PATH_TO_LABELS=os.path.join(objdet_path, "label_map.pbtxt")
+NUM_CLASSES=1
 
 # This class runs the image through a google object detection API (using mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28)
 # And generates polygons based on detected masks
