@@ -219,7 +219,6 @@ class EditablePolygonItem(PolygonItem):
         yns = [str(pt.y()) for pt in self._polygon]
         xn_string = ";".join(xns)
         yn_string = ";".join(yns)
-        print("Corrected: ", self._corrected)
         self._model_item.update({
             self.prefix() + 'xn': xn_string,
             self.prefix() + 'yn': yn_string,
