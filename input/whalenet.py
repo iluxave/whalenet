@@ -30,6 +30,8 @@ class WhaleDetectorPlugin(QObject):
         self._sc_all.triggered.connect(self.doall)
         self._sc_one  = QAction("Detect whales in current image", self._wnd)
         self._sc_one.triggered.connect(self.doone)
+        self._clear_uncorrected = QAction("Clear unreviewed annotations", self._wnd)
+        self._clear_uncorrected.triggered.connect(self.clearUncorrected)
         # Prepare the TF model and stuff
         self._graph = tf.Graph()
         with self._graph.as_default():
@@ -100,6 +102,11 @@ class WhaleDetectorPlugin(QObject):
         return output_dict
 
     def doimg(self, item):
+        # do not detect in images with human-corrected annotations
+        for a in item.annotations():
+            if 'corrected' in a and a['corrected']:
+                return
+
         img = self._labeltool.getImage(item)
         whales = self.run_inference_for_single_image(img)
         for whale in whales['detection_masks']:
@@ -108,8 +115,8 @@ class WhaleDetectorPlugin(QObject):
                 'class':    'tail',
                 'xn':        ';'.join([str(p.x()) for p in whale_poly]),
                 'yn':        ';'.join([str(p.y()) for p in whale_poly]),
-                'autodetected': 'true',
-                'corrected': 'false',
+                'autodetected': True,
+                'corrected': False,
             }
 
             item.addAnnotation(ann)
@@ -131,5 +138,14 @@ class WhaleDetectorPlugin(QObject):
         self._sc_all.setEnabled(True)
         self._sc_one.setEnabled(True)
 
+    def clearUncorrected(self):
+        self._clear_uncorrected.setEnabled(False)
+        model = self._labeltool.model()
+        for i, item in enumerate(model.iterator(ImageModelItem)):
+            for a in item.annotations():
+                if 'autodetected' in a and a['autodetected'] and 'corrected' in a and not a['corrected']:
+                    a.delete()
+        self._clear_uncorrected.setEnabled(True)
+
     def action(self):
-        return (self._sc_one, self._sc_all)
+        return (self._sc_one, self._sc_all, self._clear_uncorrected)
