@@ -198,7 +198,6 @@ class EditablePolygonItem(PolygonItem):
             pt1 = self._polygon[i-1]
             pt2 = self._polygon[i]
             if ptdist(pt1, pt2) < self.MIN_POINT_DIST:
-                print("Removing point", i)
                 self._polygon.remove(i)
             else:
                 i=i+1
