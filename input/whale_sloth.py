@@ -296,6 +296,10 @@ def create_tf_example(annotation):
             if ymin > y: ymin=y
             if x > xmax: xmax=x
             if y > ymax: ymax=y
+        if xmin > 0: xmin=xmin-1
+        if xmax < width: xmax=xmax+1
+        if ymin > 0: ymin=ymin-1
+        if ymax < height: ymax=ymax+1
         xmins.append(xmin/width)
         xmaxs.append(xmax/width)
         ymins.append(ymin/height)
