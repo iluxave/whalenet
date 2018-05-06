@@ -1,8 +1,9 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=''
+. ./mask_model
 eval python3 ~/ai/tf-models/research/object_detection/eval.py \
     --logtostderr \
-    --pipeline_config_path=./mask_rcnn_inception_resnet_v2_atrous_coco_2018_01_28.config \
-    --checkpoint_dir=./google_object_detection/mask/mask_rcnn_inception_resnet_v2_atrous_coco \
-    --eval_dir=./google_object_detection/mask/mask_rcnn_inception_resnet_v2_atrous_coco-eval
+    --pipeline_config_path=./${MODEL}.config \
+    --checkpoint_dir=./google_object_detection/mask/${MODEL} \
+    --eval_dir=./google_object_detection/mask/${MODEL}-eval
 
