@@ -3,8 +3,10 @@
     //Script based on code from....
     var perimeter = new Array();
     var complete = false;
+    var current_pt = -1;
     var canvas;
     var ctx;
+    var img;
     function line_intersects(p0, p1, p2, p3) {
         var s1_x, s1_y, s2_x, s2_y;
         s1_x = p1['x'] - p0['x'];
@@ -121,6 +123,7 @@
         }
         return false;
     }
+
     function point_it(event) {
         var rect, x, y;
         if(event.ctrlKey){
@@ -128,8 +131,10 @@
             undo();
             return false;
         } else if(complete){
-            alert('Polygon already created');
-            return false;
+            process_change(event);
+	    restart();
+	    draw(true);
+	    return false;
         }
         else if(event.which === 3 || event.button === 2){
             //atempt to close polygon 
@@ -164,9 +169,15 @@
             return false;
         }
     }
+
+    function restart() {
+        canvas = document.getElementById("jPolygon");
+        ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
     function start(with_draw) {
         canvas = document.getElementById("jPolygon");
-        var img = new Image();
+        img = new Image();
         img.src = canvas.getAttribute('data-imgsrc');
         img.onload = function(){
             canvas.width = img.width;
@@ -178,7 +189,52 @@
             }
         }
     }
-</script><!-- Bootstrap v3.0.3 -->
+
+    function pt_dist(pt1, pt2) {
+        var xd=pt1.x-pt2.x;
+        var yd=pt1.y-pt2.y;
+
+        return Math.sqrt(xd*xd+yd*yd);
+    }
+    function find_point(pt) {
+        for(var i=0; i<perimeter.length; i++){
+	    if(pt_dist(pt, perimeter [i]) < 10) return i;
+        }
+	return null;
+    }
+    function get_event_coord(event) {
+        var rect = canvas.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+	var pt={'x': x, 'y': y};
+	return pt;
+    }
+    function process_change(event) {
+        var pt = get_event_coord(event);
+	var idx = find_point(pt);
+	if(idx!=null) { current_pt = idx; }
+	return true;
+    }
+
+    function move_it(event) {
+        if(current_pt == -1)
+	    return true;
+	var pt = get_event_coord(event);
+	perimeter[current_pt].x = pt.x;
+	perimeter[current_pt].y = pt.y;
+	restart();
+	draw(true);
+    }
+    function done_moving(event) {
+        if(current_pt != -1) {
+	    restart();
+	    draw(true);
+	}
+        current_pt = -1;
+    }
+</script>
+
+<!-- Bootstrap v3.0.3 -->
 <link href="https://s3.amazonaws.com/mturk-public/bs30/css/bootstrap.min.css" rel="stylesheet" />
 <section class="container" id="Other" style="margin-bottom:15px; padding: 10px 10px; font-family: Verdana, Geneva, sans-serif; color:#333333; font-size:0.9em;">
 <div class="row col-xs-12 col-md-12"><!-- Instructions -->
@@ -208,7 +264,10 @@
 <textarea disabled="disabled" id="coordinates" name="coordinates" style="width:300px; height:200px;"></textarea> --><input id="coordinates" name="coordinates" type="hidden" /> <input id="imageid" name="imageid" type="hidden" value="${image_id}" /></p>
 
 <div id="imgframe" style="float:left"><!--change the data-imgsrc="${img_url}" -->
-<p><canvas data-imgsrc="${img_url}" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas></p>
+  <p>
+    <!--<canvas data-imgsrc="${img_url}" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" onmousemove="move_it(event)" onmouseup="done_moving(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas>-->
+    <canvas data-imgsrc="http://www.theilya.com/whalenet/input/train/5d8b5069.jpg" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" onmousemove="move_it(event)" onmouseup="done_moving(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas>
+  </p>
 </div>
 
 <div style="float:left; margin-left:20px;">
