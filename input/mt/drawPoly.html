@@ -1,4 +1,83 @@
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script><script type="text/javascript">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+  /* Distance to line segment. Sources taken from https://raw.githubusercontent.com/scottglz/distance-to-line-segment/master/index.js */
+  'use strict';
+11
+/**
+* Calculate the square of the distance between a finite line segment and a point. This 
+* version takes somewhat less convenient parameters than distanceToLineSegment.squared,
+* but is more efficient if you are calling it multiple times for the same line segment,
+* since you pass in some easily pre-calculated values for the segment.
+* @alias module:distance-to-line-segment.squaredWithPrecalc
+* @param {number} lx1 - x-coordinate of line segment's first point
+* @param {number} ly1 - y-coordinate of line segment's first point
+* @param {number} ldx - x-coordinate of the line segment's second point minus lx1
+* @param {number} ldy - y-coordinate of the line segment's second point minus ly1
+* @param {number} lineLengthSquared - must be ldx\*ldx + ldy\*ldy. Remember, this precalculation
+*    is for efficiency when calling this multiple times for the same line segment.
+* @param {number} px - x coordinate of point
+* @param {number} py - y coordinate of point
+*/
+
+function distanceSquaredToLineSegment2(lx1, ly1, ldx, ldy, lineLengthSquared, px, py) {
+   var t; // t===0 at line pt 1 and t ===1 at line pt 2
+   if (!lineLengthSquared) {
+      // 0-length line segment. Any t will return same result
+      t = 0;
+   }
+   else {
+      t = ((px - lx1) * ldx + (py - ly1) * ldy) / lineLengthSquared;
+
+      if (t < 0)
+         t = 0;
+      else if (t > 1)
+         t = 1;
+   }
+   
+   var lx = lx1 + t * ldx,
+       ly = ly1 + t * ldy,
+       dx = px - lx,
+       dy = py - ly;
+   return dx*dx + dy*dy;   
+}
+
+/**
+* Calculate the square of the distance between a finite line segment and a point. 
+* @alias module:distance-to-line-segment.squared
+* @param {number} lx1 - x-coordinate of line segment's first point
+* @param {number} ly1 - y-coordinate of line segment's first point
+* @param {number} lx2 - x-coordinate of the line segment's second point
+* @param {number} ly2 - y-coordinate of the line segment's second point
+* @param {number} px - x coordinate of point
+* @param {number} py - y coordinate of point
+*/
+
+function distanceSquaredToLineSegment(lx1, ly1, lx2, ly2, px, py) {
+   var ldx = lx2 - lx1,
+       ldy = ly2 - ly1,
+       lineLengthSquared = ldx*ldx + ldy*ldy;
+   return distanceSquaredToLineSegment2(lx1, ly1, ldx, ldy, lineLengthSquared, px, py);
+}
+
+/**
+* Calculate the distance between a finite line segment and a point. Using distanceToLineSegment.squared can often be more efficient.
+* @alias module:distance-to-line-segment
+* @param {number} lx1 - x-coordinate of line segment's first point
+* @param {number} ly1 - y-coordinate of line segment's first point
+* @param {number} lx2 - x-coordinate of the line segment's second point
+* @param {number} ly2 - y-coordinate of the line segment's second point
+* @param {number} px - x coordinate of point
+* @param {number} py - y coordinate of point
+*/
+
+function distanceToLineSegment(lx1, ly1, lx2, ly2, px, py)
+{
+   return Math.sqrt(distanceSquaredToLineSegment(lx1, ly1, lx2, ly2, px, py));
+}
+</script>
+<script type="text/javascript">
+
     //The following section contains the java script functions for the polygon drawing tool
     //Script based on code from....
     var perimeter = new Array();
@@ -7,6 +86,7 @@
     var canvas;
     var ctx;
     var img;
+    var maxdist=0;
     function line_intersects(p0, p1, p2, p3) {
         var s1_x, s1_y, s2_x, s2_y;
         s1_x = p1['x'] - p0['x'];
@@ -77,8 +157,8 @@
         if(perimeter.length == 0){
             document.getElementById('coordinates').value = '';
         } else {
-	    xn=[];
-	    yn=[];
+	    var xn=[];
+	    var yn=[];
             for(i=0; i<perimeter.length; i++) {
               xn[i]=perimeter[i].x;
               yn[i]=perimeter[i].y;
@@ -124,12 +204,26 @@
         return false;
     }
 
+    function insert_point(event) {
+        var pt = get_event_coord(event);
+	var idx = find_segment(pt);
+	if(idx!=null) {
+            perimeter.splice(idx, 0, pt);
+            restart();
+	    draw(true);
+	    current_pt = idx;
+	}
+	return false;
+    }
     function point_it(event) {
         var rect, x, y;
         if(event.ctrlKey){
             //for faster undo use ctrl+click
             undo();
             return false;
+	} else if(event.shiftKey){
+	    insert_point(event);
+	    return false;
         } else if(complete){
             process_change(event);
 	    restart();
@@ -149,10 +243,9 @@
                     return false;
                 }
                 draw(true);
-                alert('Polygon closed');
 	        event.preventDefault();
                 return false;
-            } else {
+        } else {
             rect = canvas.getBoundingClientRect();
             x = event.clientX - rect.left;
             y = event.clientY - rect.top;
@@ -182,6 +275,8 @@
         img.onload = function(){
             canvas.width = img.width;
             canvas.height = img.height;
+	    // Maximum distance between points on this canvas
+	    maxdist = Math.sqrt(img.width*img.width+img.height*img.height)
             ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             if(with_draw == true){
@@ -201,6 +296,33 @@
 	    if(pt_dist(pt, perimeter [i]) < 10) return i;
         }
 	return null;
+    }
+    /* Find a polygon segment closest to a given point */
+    function find_segment(pt) {
+        if(perimeter.length < 2)
+            return 0;
+        var mindist=maxdist;
+	var mindist_idx=-1;
+	var i;
+	var dist;
+        for(i=1; i<perimeter.length; i++){
+	    dist = distanceToLineSegment(
+	        perimeter[i-1].x, perimeter[i-1].y,
+		perimeter[i].x, perimeter[i].y,
+		pt.x, pt.y);
+	    if(dist<mindist) {
+	        mindist=dist;
+		mindist_idx=i;
+	    }
+	}
+	/* Check the distance of the last segment */
+	dist = distanceToLineSegment(
+	        perimeter[i-1].x, perimeter[i-1].y,
+		perimeter[0].x, perimeter[0].y,
+		pt.x, pt.y);
+	if(dist<mindist)
+	    return i;
+	return mindist_idx;
     }
     function get_event_coord(event) {
         var rect = canvas.getBoundingClientRect();
@@ -248,13 +370,17 @@
 	<li>Please draw a contour using the <b>mouse left button</b> to click and connect points that outline whale tail <b>in maximum detail</b>.</li>
 	<li>To finish the contour polygon use the <b>mouse right button</b>. This command will connect the first to the last point.</li>
 	<li>Remove the last point by clicking <b>Ctrl + mouse click</b> or click on the <b>Undo button.</b></li>
+	<li>Once polygon is closed, you may move points around by clicking and dragging</li>
+	<li>It is also possible to add new points to a closed polygon, by using <b>Shift+left mouse button</b></li>
 	<li>Clear all points by clicking on the <b>Reset button</b></li>
-	<li>In order to get accepted, the polygon must match the tail outline as close as possible, including extrusions and notches</li>
+	<li>In order to get accepted, the polygon must match the tail outline as close as possible, <em>including extrusions and notches</em></li>
 	<li>Various growths and attachments are also considered to be part of the tail</li>
 	<li>Use as many points as needed - a good contour will usually have a few hundred</li>
+	<li>Use browser's zoom-in functionality to check that your contour matches the whale tail well </li>
         <li>Good annotation looks like <a href="http://www.theilya.com/whalenet/input/good-annotation.jpg" target="_blank"> this </a></li>
         <li>Bad annotation looks like <a href="http://www.theilya.com/whalenet/input/bad-annotation.jpg" target="_blank"> this </a></li>
 </ul>
+<p><i>I had to reject a lot of entries last time I run this job, because they weren't precise enough. Please do take a look at the good and bad examples</i></p>
 </div>
 </div>
 <!-- End Instructions --><!-- Content Body -->
@@ -265,8 +391,7 @@
 
 <div id="imgframe" style="float:left"><!--change the data-imgsrc="${img_url}" -->
   <p>
-    <!--<canvas data-imgsrc="${img_url}" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" onmousemove="move_it(event)" onmouseup="done_moving(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas>-->
-    <canvas data-imgsrc="http://www.theilya.com/whalenet/input/train/5d8b5069.jpg" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" onmousemove="move_it(event)" onmouseup="done_moving(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas>
+    <canvas data-imgsrc="${img_url}" id="jPolygon" oncontextmenu="return false;" onmousedown="point_it(event)" onmousemove="move_it(event)" onmouseup="done_moving(event)" style="cursor:crosshair"> Your browser does not support the HTML5 canvas tag. </canvas>
   </p>
 </div>
 
