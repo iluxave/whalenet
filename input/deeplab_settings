@@ -1,0 +1,5 @@
+INIT_CHECKPOINT=xception
+
+SCRIPT_DIR=$(cd $(dirname $0); pwd)
+DEEPDIR=${SCRIPT_DIR}/deeplab
+TRAINDIR=${SCRIPT_DIR}/google_object_detection/deeplab/${INIT_CHECKPOINT}
