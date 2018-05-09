@@ -18,6 +18,9 @@ annotations=[]
 with open(file, 'r') as csvfile:
     areader=csv.DictReader(csvfile)
     for row in areader:
-        annotations.append(json.loads(row['Answer.coordinates']))
+        if row['AssignmentStatus']=='Submitted':
+            ann=json.loads(row['Answer.coordinates'])
+            ann['worktime']=row['WorkTimeInSeconds']
+            annotations.append(ann)
 
 print(json.dumps(annotations))
