@@ -18,6 +18,6 @@ exec python3 ~/ai/tf-models/research/deeplab/train.py \
     --train_logdir=${TRAINDIR}/train \
     --dataset_dir=${SCRIPT_DIR}/tfrecord \
     --fine_tune_batch_norm=False \
-    --train_batch_size=4 \
+    --train_batch_size=8 \
     --save_summaries_images=True \
-    --initialize_last_layer=False
+    --initialize_last_layer=True
