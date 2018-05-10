@@ -19,13 +19,9 @@ python3 ~/ai/tf-models/research/deeplab/export_model.py \
   --logtostderr \
   --checkpoint_path="${checkpoint}" \
   --export_path="deeplab/export/$step/frozen_inference_graph.pb" \
-  --model_variant="xception_65" \
-  --atrous_rates=6 \
-  --atrous_rates=12 \
-  --atrous_rates=18 \
-  --output_stride=16 \
-  --decoder_output_stride=4 \
-  --num_classes=1 \
+  --model_variant="${MODEL_VARIANT}" \
+  ${XCEPTION_OPTIONS} \
+  --num_classes=2 \
   --crop_size=600 \
   --crop_size=1600 \
   --inference_scales=1.0

@@ -5,7 +5,7 @@ export CUDA_VISIBLE_DEVICES=''
 python3 ~/ai/tf-models/research/deeplab/eval.py \
     --logtostderr \
     --eval_split="val" \
-    --model_variant="xception_65" \
+    --model_variant="${MODEL_VARIANT}" \
     --atrous_rates=6 \
     --atrous_rates=12 \
     --atrous_rates=18 \

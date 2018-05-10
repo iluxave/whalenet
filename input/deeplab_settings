@@ -1,5 +1,19 @@
-INIT_CHECKPOINT=xception
+#INIT_CHECKPOINT=xception
+INIT_CHECKPOINT=mobilenet
 
 SCRIPT_DIR=$(cd $(dirname $0); pwd)
 DEEPDIR=${SCRIPT_DIR}/deeplab
 TRAINDIR=${SCRIPT_DIR}/google_object_detection/deeplab/${INIT_CHECKPOINT}
+
+MODEL_VARIANT=xception_65
+[ ${INIT_CHECKPOINT} == mobilenet ] && MODEL_VARIANT=mobilenet_v2
+
+CKPT_FILE=${DEEPDIR}/${INIT_CHECKPOINT}/model.ckpt
+#if [ ${INIT_CHECKPOINT} == mobilenet ]; then
+#   CKPT_FILE=$(ls ${DEEPDIR}/${INIT_CHECKPOINT}/mobilenet*.ckpt*|head -n1)
+#   CKPT_FILE=${CKPT_FILE/.ckpt*/.ckpt}
+#fi
+
+if [ "${INIT_CHECKPOINT}" == xception_65 ]; then
+   XCEPTION_OPTIONS="--decoder_output_stride=4 --atrous_rates=6 --atrous_rates=12 --atrous_rates=18 --output_stride=16"
+fi
