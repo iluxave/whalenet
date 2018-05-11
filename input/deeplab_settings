@@ -1,5 +1,9 @@
 #INIT_CHECKPOINT=xception
 INIT_CHECKPOINT=mobilenet
+# Change it to a larger number on
+# the google cloud - where there is more
+# then one GPU
+NUM_CLONES=1
 
 SCRIPT_DIR=$(cd $(dirname $0); pwd)
 DEEPDIR=${SCRIPT_DIR}/deeplab
